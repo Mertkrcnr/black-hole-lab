@@ -293,29 +293,109 @@ THEORETICAL CLASSIFICATION:
       a.click();
       URL.revokeObjectURL(a.href);
 
-      // --- PNG: capture WebGL canvas at 2x via temporary resize ---
+      // --- PNG: 2x scene capture + scientific figure annotation (params band, observables stamp, timestamp) ---
       await new Promise((r) => requestAnimationFrame(() => r(null)));
       const canvas = document.querySelector(".scene canvas") as HTMLCanvasElement | null;
       if (canvas) {
-        const src = canvas.toDataURL("image/png");
         const img = new Image();
         await new Promise((ok, err) => {
           img.onload = ok;
           img.onerror = err;
-          img.src = src;
+          img.src = canvas.toDataURL("image/png");
         });
         const out = document.createElement("canvas");
-        out.width = img.width * 2;
-        out.height = img.height * 2;
+        const scale = 2;
+        const pad = 18 * scale;
+        const bandH = 44 * scale;
+        out.width = img.width;
+        out.height = img.height + bandH + pad;
         const ctx = out.getContext("2d");
         if (ctx) {
+          ctx.fillStyle = "#05060a";
+          ctx.fillRect(0, 0, out.width, out.height);
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = "high";
-          ctx.drawImage(img, 0, 0, out.width, out.height);
-          const a2 = document.createElement("a");
-          a2.href = out.toDataURL("image/png");
-          a2.download = `${base}.png`;
-          a2.click();
+          ctx.drawImage(img, 0, 0, img.width, img.height);
+
+          const mono = (w: number) => `${w}px "JetBrains Mono", "Fira Code", monospace`;
+
+          // Title band: generator, target, location
+          const titleY = pad + 12 * scale;
+          ctx.fillStyle = "#e8eaf0";
+          ctx.font = mono(15 * scale);
+          ctx.fillText("BLACK HOLE LAB \u2014 KERR SPACETIME", pad, titleY);
+          ctx.font = mono(11 * scale);
+          ctx.fillStyle = "#8b93a7";
+          const targetLine = `${target}${selected?.location ? ` \u00b7 ${selected.location}` : ""}`;
+          ctx.fillText(targetLine, pad, titleY + 17 * scale);
+
+          // Parameter band: full input state on one line
+          const bandY = img.height + 14 * scale;
+          ctx.fillStyle = "#10131c";
+          ctx.fillRect(0, img.height, out.width, bandH + pad);
+          ctx.strokeStyle = "#232838";
+          ctx.lineWidth = scale;
+          ctx.beginPath();
+          ctx.moveTo(0, img.height + 0.5 * scale);
+          ctx.lineTo(out.width, img.height + 0.5 * scale);
+          ctx.stroke();
+
+          const fmt = (v: number) => (v >= 100 ? v.toFixed(0) : v.toFixed(2));
+          const paramLine = [
+            `M = ${fmt(parameters.mass)} M\u2609`,
+            `a* = ${parameters.spin.toFixed(3)}`,
+            `r = ${fmt(parameters.distance)} GM/c\u00b2`,
+            `i = ${parameters.cameraAngle.toFixed(0)}\u00b0`,
+            `I = ${parameters.intensity.toFixed(2)}`,
+          ].join("   \u00b7   ");
+          ctx.fillStyle = "#e8eaf0";
+          ctx.font = mono(11.5 * scale);
+          ctx.fillText(paramLine, pad, bandY + 14 * scale);
+
+          // Key observables stamp, right-aligned
+          const obs = readouts[0] && readouts[2] && readouts[6] && readouts[8]
+            ? `r\u209b ${readouts[0].value} ${readouts[0].unit}   r\u208a ${readouts[2].value} ${readouts[2].unit}   R\u209b ${readouts[6].value} ${readouts[6].unit}   \u0394t ${readouts[8].value}${readouts[8].unit}`
+            : "";
+          ctx.fillStyle = "#6ee7b7";
+          ctx.font = mono(10.5 * scale);
+          const obsW = ctx.measureText(obs).width;
+          ctx.fillText(obs, out.width - pad - obsW, bandY + 14 * scale);
+
+          // Footer: timestamp + reproduction URL
+          ctx.fillStyle = "#5a6072";
+          ctx.font = mono(9 * scale);
+          const foot = `${new Date().toISOString().replace("T", " ").slice(0, 16)} UTC   \u00b7   ${window.location.href}`;
+          ctx.fillText(foot, pad, bandY + 30 * scale);
+        }
+        const a2 = document.createElement("a");
+        a2.href = out.toDataURL("image/png");
+        a2.download = `${base}.png`;
+        a2.click();
+      }
+
+      // --- WEBM: 6-second scene recording via captureStream + MediaRecorder ---
+      if (canvas && typeof canvas.captureStream === "function" && typeof MediaRecorder !== "undefined") {
+        const stream = canvas.captureStream(30);
+        const mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((m) => MediaRecorder.isTypeSupported(m));
+        if (mime) {
+          const chunks: Blob[] = [];
+          const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+          rec.ondataavailable = (e) => {
+            if (e.data.size > 0) chunks.push(e.data);
+          };
+          const done = new Promise<void>((ok) => {
+            rec.onstop = () => ok();
+          });
+          rec.start();
+          await new Promise((r) => setTimeout(r, 6000));
+          rec.stop();
+          await done;
+          const vblob = new Blob(chunks, { type: "video/webm" });
+          const a3 = document.createElement("a");
+          a3.href = URL.createObjectURL(vblob);
+          a3.download = `${base}.webm`;
+          a3.click();
+          URL.revokeObjectURL(a3.href);
         }
       }
     } finally {
@@ -467,7 +547,7 @@ THEORETICAL CLASSIFICATION:
               aria-label="Export lab state as PNG image and JSON data"
             >
               <Download className="size-3.5" />
-              {exporting ? "Exporting" : "Export PNG+JSON"}
+              {exporting ? "Exporting" : "Export PNG+JSON+WEBM"}
             </Button>
             <span className="tool-divider" />
             <Button
