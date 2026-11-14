@@ -29,6 +29,20 @@ Both within 1σ. Reproduce with:
 npx tsx scripts/verify-eht.ts
 ```
 
+## Live NASA Open Data
+
+The lab is wired to NASA's public APIs **live** — values and images are fetched at page load, not stored in the repo:
+
+- **images-api.nasa.gov** (NASA Image & Video Library) — observatory imagery for M87*, Sagittarius A* and Cygnus X-1 on the `/nasa-live` view; queried directly from the browser (CORS-enabled).
+- **heasarc.gsfc.nasa.gov** (Xamin TAP service) — ADQL query against the `public.xrbcat` catalog returns the live CYG X-1 row (J2000 coordinates, orbital period, peak X-ray flux); proxied through a TanStack Start server function because Xamin sends no CORS headers.
+- **Pinned provenance** — the EHT validation view carries the official NASA/JPL asset `PIA23122` (Spitzer view of M87 with the Event Horizon Telescope ring inset) next to the theoretical shadow overlay.
+
+Reproduce the live-source check without starting the app:
+
+```
+node scripts/verify-nasa-live.mjs
+```
+
 ## Laboratory Views
 
 - **Overview** — orbit camera around the rendered scene
@@ -37,6 +51,7 @@ npx tsx scripts/verify-eht.ts
 - **Spacetime** — time dilation and tidal acceleration profiles
 - **Observation** — angular sizes as seen from Earth
 - **Real Data** — M87*, Sgr A*, Cygnus X-1 with EHT overlay comparison
+- **NASA Live** — live imagery and catalog rows fetched from NASA's open APIs
 
 ## Getting Started
 
@@ -46,6 +61,7 @@ npm run dev        # development server
 npm run test       # vitest suite (unit + engine consistency)
 npx tsc --noEmit   # type check
 npx tsx scripts/verify-eht.ts   # EHT validation script
+node scripts/verify-nasa-live.mjs   # live NASA API probe
 ```
 
 ## Tech Stack
