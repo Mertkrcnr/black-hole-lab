@@ -284,7 +284,7 @@
   background: color-mix(in oklch, var(--card) 72%, transparent);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 16px 16px 12px;
+  padding: 12px 14px 10px;
   backdrop-filter: blur(18px);
 }
 .simulation-heading {
@@ -302,10 +302,10 @@
 }
 .side-panel {
   position: absolute;
-  top: 128px;
-  width: 248px;
+  top: 120px;
+  width: 236px;
   z-index: 2;
-  max-height: calc(100% - 168px);
+  max-height: calc(100% - 160px);
   overflow: auto;
 }
 .parameters {
@@ -332,7 +332,20 @@
   border-bottom: 1px solid var(--border);
 }
 .parameter {
-  padding: 16px 0 6px;
+  padding: 9px 0 3px;
+}
+.parameter-value {
+  margin: 5px 0 8px;
+  font-size: 19px;
+  font-weight: 400;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.parameter-value small {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-foreground);
 }
 .parameter-label {
   width: 100%;
@@ -351,26 +364,13 @@
 .parameter-label:hover {
   color: var(--foreground);
 }
-.parameter-value {
-  margin: 8px 0 14px;
-  font-size: 24px;
-  font-weight: 400;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.parameter-value small {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--muted-foreground);
-}
 .range-labels {
   display: flex;
   justify-content: space-between;
   color: var(--muted-foreground);
   font-family: var(--font-mono);
   font-size: 9px;
-  margin-top: 10px;
+  margin-top: 5px;
 }
 .model-box {
   margin-top: 12px;
@@ -760,10 +760,66 @@
 .report-modal-content {
   max-width: 720px;
   max-height: 85vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   background: color-mix(in oklch, var(--card) 94%, black) !important;
   border: 1px solid var(--border) !important;
   backdrop-filter: blur(28px);
+}
+.report-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  flex: 0 1 auto;
+}
+.report-close-x {
+  top: 10px !important;
+  right: 10px !important;
+  opacity: 0.9 !important;
+  background: color-mix(in oklch, var(--card) 85%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+}
+.report-close-x:hover {
+  opacity: 1 !important;
+  border-color: color-mix(in oklch, var(--primary) 45%, transparent);
+  color: var(--primary);
+}
+.report-modal-footer {
+  flex-shrink: 0;
+  background: color-mix(in oklch, var(--card) 96%, black);
+  margin-top: 8px;
+}
+
+/* Close affordance for center display panels (2D plots / EHT) */
+.center-display-container {
+  padding-top: 6px;
+}
+.center-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--card) 88%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 9px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.center-close:hover {
+  border-color: color-mix(in oklch, var(--primary) 45%, transparent);
+  color: var(--primary);
 }
 .report-table {
   width: 100%;
@@ -934,10 +990,10 @@
     width: auto;
   }
   .parameter {
-    padding-top: 14px;
+    padding-top: 12px;
   }
   .parameter-value {
-    font-size: 22px;
+    font-size: 20px;
   }
   .readout {
     padding: 12px 0;
@@ -1012,6 +1068,114 @@
     width: 100%;
   }
 }
+/* ===== Guided Lab Tour ===== */
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 96px 32px 100px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+.tour-card {
+  width: min(340px, 92vw);
+  background: color-mix(in oklch, var(--card) 96%, black);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(24px);
+}
+.tour-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.tour-chip {
+  color: var(--primary);
+  border-color: color-mix(in oklch, var(--primary) 40%, transparent);
+}
+.tour-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in oklch, var(--card) 85%, transparent);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.tour-x:hover {
+  color: var(--primary);
+  border-color: color-mix(in oklch, var(--primary) 45%, transparent);
+}
+.tour-title {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.tour-body {
+  margin: 7px 0 12px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--muted-foreground);
+}
+.tour-dots {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.tour-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--muted-foreground);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.tour-dot.is-done {
+  background: color-mix(in oklch, var(--primary) 55%, transparent);
+  border-color: transparent;
+}
+.tour-dot.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  transform: scale(1.2);
+}
+.tour-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Tour spotlight highlight on the mapped region */
+[data-tour="active"] {
+  outline: 1px solid color-mix(in oklch, var(--primary) 55%, transparent);
+  outline-offset: 4px;
+  border-radius: 10px;
+  animation: tour-pulse 2s ease-in-out infinite;
+}
+@keyframes tour-pulse {
+  0%, 100% { outline-color: color-mix(in oklch, var(--primary) 25%, transparent); }
+  50% { outline-color: color-mix(in oklch, var(--primary) 70%, transparent); }
+}
+
+@media (max-width: 760px) {
+  .tour-overlay {
+    padding: 24px 16px;
+    align-items: flex-end;
+    justify-content: center;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

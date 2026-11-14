@@ -21,6 +21,8 @@ import {
   Server,
   Share2,
   Waves,
+  X,
+  Compass,
 } from "lucide-react";
 import { LabShell } from "@/components/lab/LabShell";
 import { MetricPanel } from "@/components/lab/MetricPanel";
@@ -105,6 +107,35 @@ const viewIcons: Record<ViewMode, typeof Orbit> = {
   "real-data": Database,
 };
 
+// Guided tour: five concise steps mapping the lab workflow for a first-time visitor.
+const TOUR_STEPS = [
+  {
+    target: "parameters" as const,
+    title: "Input Parameters",
+    body: "Pick an observed NASA target (M87*, Sgr A*, Cygnus X-1) or drag the mass, spin and distance sliders. Every observable recalculates instantly.",
+  },
+  {
+    target: "observable" as const,
+    title: "Scientific Observables",
+    body: "Ten live quantities - event horizons, photon sphere, shadow radius, time dilation - update as you drag. Hover any row for the physics behind it.",
+  },
+  {
+    target: "view" as const,
+    title: "Visualization Modes",
+    body: "Switch between OVERVIEW, GEOMETRY, LIGHT RAY, SPACETIME and OBSERVER to inspect the same spacetime solution from different angles.",
+  },
+  {
+    target: "plots" as const,
+    title: "2D Charts & EHT",
+    body: "Open 2D Geodesic Plots for geodesic integrations, or NASA EHT Validation to compare the simulated shadow against the real M87* image.",
+  },
+  {
+    target: "report" as const,
+    title: "Scientific Report",
+    body: "Step 5 compiles every parameter and result into a copy-ready analysis report. Share View exports the exact lab state as a URL.",
+  },
+] as const;
+
 function Simulation() {
   const { object, M, a, r, i } = Route.useSearch();
   const navigate = useNavigate();
@@ -122,6 +153,7 @@ function Simulation() {
   const [fastApiModalOpen, setFastApiModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [tourStep, setTourStep] = useState<number | null>(null);
 
   const selected = objects.find((o) => o.id === object);
 
@@ -247,13 +279,29 @@ THEORETICAL CLASSIFICATION:
 
         {/* Center Viewport Switcher for 2D Plots & NASA EHT Validation */}
         {centerView === "plots" && (
-          <div className="center-display-container">
+          <div className="center-display-container" data-tour={tourStep === 3 ? "active" : undefined}>
+            <button
+              type="button"
+              className="center-close"
+              onClick={() => setCenterView("3d")}
+              aria-label="Close 2D plots and return to 3D view"
+            >
+              <X className="size-3.5" /> CLOSE
+            </button>
             <ScientificCharts parameters={parameters} />
           </div>
         )}
 
         {centerView === "eht" && (
-          <div className="center-display-container">
+          <div className="center-display-container" data-tour={tourStep === 3 ? "active" : undefined}>
+            <button
+              type="button"
+              className="center-close"
+              onClick={() => setCenterView("3d")}
+              aria-label="Close EHT validation and return to 3D view"
+            >
+              <X className="size-3.5" /> CLOSE
+            </button>
             <EhtOverlayPanel selectedId={selected?.id} onSelectObject={loadObjectPreset} />
             <NasaProvenanceBand objectId={selected?.id ?? "m87"} />
           </div>
@@ -335,6 +383,17 @@ THEORETICAL CLASSIFICATION:
               )}
               {shareCopied ? "Link Copied" : "Share View"}
             </Button>
+            <span className="tool-divider" />
+            <Button
+              variant={tourStep !== null ? "secondary" : "ghost"}
+              size="sm"
+              className="text-[11px] h-7 font-mono gap-1.5"
+              onClick={() => setTourStep(tourStep === null ? 0 : null)}
+              aria-label="Start or exit the guided lab tour"
+            >
+              <Compass className="size-3.5" />
+              {tourStep === null ? "Lab Tour" : "Exit Tour"}
+            </Button>
           </div>
         </div>
 
@@ -344,6 +403,7 @@ THEORETICAL CLASSIFICATION:
           animate={{ opacity: 1, x: 0 }}
           className="side-panel parameters glass-panel"
           aria-label="Input Parameters"
+          data-tour={tourStep === 0 ? "active" : undefined}
         >
           <div className="panel-title technical">
             <span>PARAMETERS</span>
@@ -498,7 +558,11 @@ THEORETICAL CLASSIFICATION:
         </motion.aside>
 
         {/* Right Side Panel: 10 Required Scientific Observables */}
-        <motion.div initial={fade ?? { opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}>
+        <motion.div
+          initial={fade ?? { opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+          data-tour={tourStep === 1 ? "active" : undefined}
+        >
           <MetricPanel readouts={readouts} />
         </motion.div>
 
@@ -572,7 +636,11 @@ THEORETICAL CLASSIFICATION:
       </main>
 
       {/* Bottom Visualization View Mode Navigation */}
-      <nav className="view-nav" aria-label="Visualization modes">
+      <nav
+        className="view-nav"
+        aria-label="Visualization modes"
+        data-tour={tourStep === 2 ? "active" : undefined}
+      >
         {viewCatalog.map(({ id, label, short }) => {
           const Icon = viewIcons[id];
           return (
@@ -593,6 +661,77 @@ THEORETICAL CLASSIFICATION:
         })}
       </nav>
 
+      {/* Guided Lab Tour overlay */}
+      {tourStep !== null && (
+        <div className="tour-overlay" role="dialog" aria-label="Guided lab tour">
+          <div className="tour-card">
+            <div className="tour-head">
+              <span className="report-chip tour-chip">{`TOUR ${tourStep + 1}/${TOUR_STEPS.length}`}</span>
+              <button
+                type="button"
+                className="tour-x"
+                onClick={() => setTourStep(null)}
+                aria-label="Exit tour"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+            <div className="tour-title">{TOUR_STEPS[tourStep]?.title}</div>
+            <p className="tour-body">{TOUR_STEPS[tourStep]?.body}</p>
+            <div className="tour-dots">
+              {TOUR_STEPS.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`tour-dot ${i === tourStep ? "is-active" : ""} ${i < tourStep ? "is-done" : ""}`}
+                  onClick={() => setTourStep(i)}
+                  aria-label={`Go to tour step ${i + 1}`}
+                />
+              ))}
+            </div>
+            <div className="tour-actions">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="font-mono text-[11px]"
+                onClick={() => setTourStep(null)}
+              >
+                Skip
+              </Button>
+              {tourStep > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="font-mono text-[11px]"
+                  onClick={() => setTourStep(tourStep - 1)}
+                >
+                  Back
+                </Button>
+              )}
+              {tourStep < TOUR_STEPS.length - 1 ? (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="font-mono text-[11px]"
+                  onClick={() => setTourStep(tourStep + 1)}
+                >
+                  Next
+                </Button>
+              ) : (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="font-mono text-[11px]"
+                  onClick={() => setTourStep(null)}
+                >
+                  Start Exploring
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Scientific Analysis Report Modal */}
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent className="report-modal-content">
@@ -610,6 +749,7 @@ THEORETICAL CLASSIFICATION:
             </DialogDescription>
           </DialogHeader>
 
+          <div className="report-scroll">
           <div className="report-section">
             <div className="report-section-title">01 · Input Configuration</div>
             <table className="report-table">
@@ -690,7 +830,9 @@ THEORETICAL CLASSIFICATION:
             </p>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-border flex justify-between items-center">
+          </div>
+
+          <div className="report-modal-footer mt-4 pt-3 border-t border-border flex justify-between items-center">
             <Button
               variant="outline"
               size="sm"

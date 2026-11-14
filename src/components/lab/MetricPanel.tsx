@@ -11,7 +11,7 @@ export function MetricPanel({ readouts }: { readouts: Readout[] }) {
       </div>
       {readouts.map((r) => (
         <LabTip key={r.id || r.label} text={r.note}>
-          <button type="button" className="readout">
+          <div className="readout">
             <div className="readout-label">
               <span>{r.label}</span>
               <span>{r.symbol}</span>
@@ -23,7 +23,7 @@ export function MetricPanel({ readouts }: { readouts: Readout[] }) {
             <div className={`source-tag ${r.source === "kerr" ? "is-kerr" : "is-illust"}`}>
               {r.sourceLabel}
             </div>
-          </button>
+          </div>
         </LabTip>
       ))}
       <div className="illustrative">
