@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as NasaLiveRouteImport } from './routes/nasa-live'
 import { Route as RealObjectsRouteImport } from './routes/real-objects'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NasaLiveRoute = NasaLiveRouteImport.update({
+  id: '/nasa-live',
+  path: '/nasa-live',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RealObjectsRoute = RealObjectsRouteImport.update({
   id: '/real-objects',
   path: '/real-objects',
@@ -32,30 +38,34 @@ const RealObjectsRoute = RealObjectsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/nasa-live': typeof NasaLiveRoute
   '/real-objects': typeof RealObjectsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/nasa-live': typeof NasaLiveRoute
   '/real-objects': typeof RealObjectsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/nasa-live': typeof NasaLiveRoute
   '/real-objects': typeof RealObjectsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/real-objects'
+  fullPaths: '/' | '/about' | '/nasa-live' | '/real-objects'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/real-objects'
-  id: '__root__' | '/' | '/about' | '/real-objects'
+  to: '/' | '/about' | '/nasa-live' | '/real-objects'
+  id: '__root__' | '/' | '/about' | '/nasa-live' | '/real-objects'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  NasaLiveRoute: typeof NasaLiveRoute
   RealObjectsRoute: typeof RealObjectsRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/nasa-live': {
+      id: '/nasa-live'
+      path: '/nasa-live'
+      fullPath: '/nasa-live'
+      preLoaderRoute: typeof NasaLiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/real-objects': {
       id: '/real-objects'
       path: '/real-objects'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  NasaLiveRoute: NasaLiveRoute,
   RealObjectsRoute: RealObjectsRoute,
 }
 export const routeTree = rootRouteImport

@@ -27,6 +27,7 @@ import { ModeOverlay } from "@/components/lab/ModeOverlay";
 import { ParameterControl } from "@/components/lab/ParameterControl";
 import { ScientificCharts } from "@/components/lab/ScientificCharts";
 import { EhtOverlayPanel } from "@/components/lab/EhtOverlayPanel";
+import { NasaProvenanceBand } from "@/components/lab/NasaProvenanceBand";
 import { FastApiBridgeModal } from "@/components/lab/FastApiBridgeModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -194,6 +195,7 @@ THEORETICAL CLASSIFICATION:
         {centerView === "eht" && (
           <div className="center-display-container">
             <EhtOverlayPanel selectedId={selected?.id} onSelectObject={loadObjectPreset} />
+            <NasaProvenanceBand objectId={selected?.id ?? "m87"} />
           </div>
         )}
 

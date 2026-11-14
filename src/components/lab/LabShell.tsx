@@ -19,12 +19,13 @@ export function LabShell({ children }: { children: ReactNode }) {
               SIMULATION
             </Link>
             <Link to="/real-objects">REAL OBJECTS</Link>
+            <Link to="/nasa-live">NASA LIVE</Link>
             <Link to="/about">ABOUT</Link>
           </nav>
           <div className="technical header-status flex items-center gap-3 text-muted-foreground">
             <span className="status-dot" />
             LAB ONLINE
-            <span className="ml-4 text-muted-foreground/50">V 0.2.0</span>
+            <span className="ml-4 text-muted-foreground/50">V 0.2.1</span>
           </div>
         </header>
         {children}
