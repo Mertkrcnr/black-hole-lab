@@ -21,6 +21,7 @@ import {
   Server,
   Share2,
   Waves,
+  Download,
   X,
   Compass,
 } from "lucide-react";
@@ -153,6 +154,7 @@ function Simulation() {
   const [fastApiModalOpen, setFastApiModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
 
   const selected = objects.find((o) => o.id === object);
@@ -246,6 +248,79 @@ THEORETICAL CLASSIFICATION:
     navigator.clipboard.writeText(reportText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Export: hi-res PNG of the 3D scene + raw JSON of the full lab state.
+  // URL stays in sync with physics state, so the JSON embeds its own reproduction link.
+  const exportData = async () => {
+    setExporting(true);
+    try {
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+      const target = selected?.name ?? "Kerr Black Hole";
+      const base = `black-hole-lab_${target.replace(/\s+/g, "-")}_${stamp}`;
+
+      // --- JSON: complete reproducible state ---
+      const state = {
+        meta: {
+          generator: "BLACK HOLE LAB",
+          url: window.location.href,
+          generatedAt: new Date().toISOString(),
+          target: selected?.name ?? null,
+          location: selected?.location ?? null,
+          solver: "Kerr metric - exact quadrature + RK4 geodesic integrator (in-browser)",
+        },
+        parameters: {
+          massSolarMasses: parameters.mass,
+          dimensionlessSpin: parameters.spin,
+          observerDistanceGMc2: parameters.distance,
+          observerInclinationDeg: parameters.cameraAngle,
+          accretionIntensity: parameters.intensity,
+        },
+        observables: readouts.map((r) => ({
+          id: r.id,
+          label: r.label,
+          symbol: r.symbol,
+          value: r.value,
+          unit: r.unit,
+          source: r.source,
+          sourceLabel: r.sourceLabel,
+        })),
+      };
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${base}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      // --- PNG: capture WebGL canvas at 2x via temporary resize ---
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      const canvas = document.querySelector(".scene canvas") as HTMLCanvasElement | null;
+      if (canvas) {
+        const src = canvas.toDataURL("image/png");
+        const img = new Image();
+        await new Promise((ok, err) => {
+          img.onload = ok;
+          img.onerror = err;
+          img.src = src;
+        });
+        const out = document.createElement("canvas");
+        out.width = img.width * 2;
+        out.height = img.height * 2;
+        const ctx = out.getContext("2d");
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(img, 0, 0, out.width, out.height);
+          const a2 = document.createElement("a");
+          a2.href = out.toDataURL("image/png");
+          a2.download = `${base}.png`;
+          a2.click();
+        }
+      }
+    } finally {
+      setExporting(false);
+    }
   };
 
   // URL is kept in sync with physics state, so location.href IS the share link.
@@ -382,6 +457,17 @@ THEORETICAL CLASSIFICATION:
                 <Share2 className="size-3.5" />
               )}
               {shareCopied ? "Link Copied" : "Share View"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-[11px] h-7 font-mono gap-1.5"
+              onClick={exportData}
+              disabled={exporting}
+              aria-label="Export lab state as PNG image and JSON data"
+            >
+              <Download className="size-3.5" />
+              {exporting ? "Exporting" : "Export PNG+JSON"}
             </Button>
             <span className="tool-divider" />
             <Button

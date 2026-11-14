@@ -276,7 +276,7 @@ export default function BlackHoleScene(props: {
   const wrapper = useRef<HTMLDivElement>(null);
   return (
     <div className="scene" ref={wrapper} aria-label="Interactive black hole simulation">
-      <Canvas camera={{ position: [0, 0, 10], fov: 40 }} dpr={[1, 1.5]} gl={{ antialias: false }}>
+      <Canvas camera={{ position: [0, 0, 10], fov: 40 }} dpr={[1, 1.5]} gl={{ antialias: false, preserveDrawingBuffer: true }}>
         <Singularity
           {...props}
           onReady={() => {
