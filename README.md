@@ -29,6 +29,17 @@ Both within 1σ. Reproduce with:
 npx tsx scripts/verify-eht.ts
 ```
 
+## Why No Backend
+
+The physics is pure, deterministic TypeScript — every readout is computed client-side from the current slider state:
+
+- **Latency-free interaction** — exact Kerr geometry, Bardeen shadow and null-geodesic integration recompute per frame; a server round-trip would break the 60 fps feel of the 3D scene.
+- **Zero infrastructure** — the whole lab is a static bundle: any CDN hosts it, nothing to keep alive, no database, no secrets.
+- **One auditable code path** — the same engine module backs the UI, the vitest suite and `scripts/verify-eht.ts`; what the jury sees on screen is exactly what the tests assert.
+- **Data lives where it belongs** — peer-reviewed masses are typed constants in the repo; live imagery and catalog rows are fetched on demand from NASA's open APIs.
+
+The only server-side code is a ~50-line TanStack Start server function that exists for a single reason: NASA's HEASARC Xamin service sends no CORS headers, so a browser cannot query it directly. The function is a transparent proxy — no logic, no state, no storage.
+
 ## Live NASA Open Data
 
 The lab is wired to NASA's public APIs **live** — values and images are fetched at page load, not stored in the repo:
