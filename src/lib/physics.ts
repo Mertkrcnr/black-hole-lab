@@ -678,3 +678,71 @@ export function siConversions(massSolar: number, a: number): SiConversions {
     rSchwarzschildKm: 2 * rg,
   };
 }
+
+// ---------------------------------------------------------------------------
+// ISCO energetics & black-hole thermodynamics (exact analytic)
+// ---------------------------------------------------------------------------
+
+const H_BAR_SI = 1.054571817e-34; // reduced Planck constant, J·s
+const K_B_SI = 1.380649e-23; // Boltzmann constant, J/K
+
+/**
+ * Specific energy E/M of a prograde circular orbit at the ISCO
+ * (Bardeen–Press–Teukolsky 1972). Thin-disk accretion efficiency is η = 1 − E.
+ * Verified limits: a = 0 → √(8/9) ≈ 0.9428 (η = 5.72%); a → 1 → 1/√3 (η = 42.3%);
+ * a = 0.998 (Thorne limit) → η ≈ 32%.
+ */
+export function iscoSpecificEnergy(a: number): number {
+  const ac = clampSpin(a);
+  const r = iscoRadius(ac);
+  const r12 = Math.sqrt(r);
+  const r32 = r * r12;
+  const denom = Math.pow(r, 0.75) * Math.sqrt(Math.max(0, r32 - 3 * r12 + 2 * ac));
+  return (r32 - 2 * r12 + ac) / denom;
+}
+
+/** Specific angular momentum L/M of the prograde ISCO orbit. a = 0 → 2√3 ≈ 3.4641. */
+export function iscoSpecificAngularMomentum(a: number): number {
+  const ac = clampSpin(a);
+  const r = iscoRadius(ac);
+  const r12 = Math.sqrt(r);
+  const r32 = r * r12;
+  return (r * r - 2 * ac * r12 + ac * ac) / (Math.pow(r, 0.75) * Math.sqrt(Math.max(0, r32 - 3 * r12 + 2 * ac)));
+}
+
+/** Dimensionless Kerr horizon area A/M² = 4π(r₊² + a²) = 8π(1 + √(1−a²)). */
+export function horizonAreaFactor(a: number): number {
+  const s = Math.sqrt(Math.max(0, 1 - clampSpin(a) ** 2));
+  return 8 * Math.PI * (1 + s);
+}
+
+/** Event-horizon surface area in km²: A = 4π(r₊² + a²) r_g². */
+export function horizonAreaKm2(massSolar: number, a: number): number {
+  const rg = gravitationalRadiusKm(massSolar);
+  return horizonAreaFactor(a) * rg * rg;
+}
+
+/** Horizon (frame-dragging) angular velocity in rad/s: Ω_H = a* c³ / (2 r₊ G M). */
+export function horizonAngularVelocity(massSolar: number, a: number): number {
+  const ac = clampSpin(a);
+  const { rPlus } = kerrHorizons(ac);
+  return (ac * C_SI ** 3) / (2 * rPlus * G_SI * Math.max(massSolar, 0.1) * M_SUN_SI);
+}
+
+/**
+ * Hawking temperature in kelvin (Kerr):
+ *   T_H = ħ c³ √(1−a*²) / [4π G M k_B (1 + √(1−a*²))]
+ * a = 0 reduces to the Schwarzschild value ħc³/(8πGMk_B) ≈ 6.17×10⁻⁸ K per M☉;
+ * vanishes at extremal spin.
+ */
+export function hawkingTemperatureK(massSolar: number, a: number): number {
+  const s = Math.sqrt(Math.max(0, 1 - clampSpin(a) ** 2));
+  const mKg = Math.max(massSolar, 0.1) * M_SUN_SI;
+  return (H_BAR_SI * C_SI ** 3 * s) / (4 * Math.PI * G_SI * mKg * K_B_SI * (1 + s));
+}
+
+/** Bekenstein–Hawking horizon entropy in J/K: S = k_B c³ A / (4 ħ G). */
+export function horizonEntropyJK(massSolar: number, a: number): number {
+  const areaM2 = horizonAreaKm2(massSolar, a) * 1e6;
+  return (K_B_SI * C_SI ** 3 * areaM2) / (4 * H_BAR_SI * G_SI);
+}

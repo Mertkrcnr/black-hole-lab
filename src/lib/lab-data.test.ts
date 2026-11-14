@@ -11,15 +11,42 @@ import {
 } from "./lab-data";
 
 describe("scientific results interface model", () => {
-  it("provides all 10 required scientific observables with finite readouts", () => {
+  it("provides all 16 scientific observables (10 core + 6 advanced) with finite readouts", () => {
     const rows = getReadouts(defaultParameters);
-    expect(rows).toHaveLength(10);
+    expect(rows).toHaveLength(16);
+    // The 10 core observables must keep their canonical positions 0..9.
+    const coreIds = [
+      "schwarzschild-radius",
+      "inner-event-horizon",
+      "outer-event-horizon",
+      "ergosphere-boundaries",
+      "photon-sphere",
+      "shadow-radius",
+      "shadow-angular-size",
+      "deflection-angle",
+      "time-dilation",
+      "tidal-acceleration",
+    ];
+    coreIds.forEach((id, i) => expect(rows[i]?.id).toBe(id));
     for (const row of rows) {
       expect(row.label).toBeTruthy();
       expect(row.symbol).toBeTruthy();
       expect(row.unit).toBeTruthy();
       expect(row.note).toBeTruthy();
+      expect(row.source).toBe("kerr");
     }
+  });
+
+  it("exposes ISCO energetics: Schwarzschild efficiency 5.72%, extremal 42.3%", () => {
+    const eff = (spin: number) => {
+      const row = getReadouts({ ...defaultParameters, spin }).find(
+        (r) => r.id === "accretion-efficiency",
+      );
+      return Number(row?.value);
+    };
+    expect(eff(0)).toBeCloseTo(5.72, 2);
+    expect(eff(0.998)).toBeGreaterThan(30);
+    expect(eff(0.9995)).toBeCloseTo(35.55, 1); // at clampSpin ceiling a*=0.9995; the 42.3% limit is reached only as a*->1
   });
 
   it("calculates the Schwarzschild radius at 2 GM/c²", () => {

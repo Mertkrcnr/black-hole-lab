@@ -240,10 +240,18 @@ CALCULATED SCIENTIFIC RESULTS:
 8. Gravitational Deflection (alpha): ${readouts[7]?.value} ${readouts[7]?.unit} [${readouts[7]?.sourceLabel}]
 9. Time Dilation Factor (Delta t): ${readouts[8]?.value} ${readouts[8]?.unit} [${readouts[8]?.sourceLabel}]
 10. Tidal Acceleration (Delta g): ${readouts[9]?.value} ${readouts[9]?.unit} [${readouts[9]?.sourceLabel}]
+11. ISCO Radius (r_isco): ${readouts[10]?.value} ${readouts[10]?.unit} [${readouts[10]?.sourceLabel}]
+12. Accretion Efficiency (eta): ${readouts[11]?.value} ${readouts[11]?.unit} [${readouts[11]?.sourceLabel}]
+13. Horizon Area (A_+): ${readouts[12]?.value} ${readouts[12]?.unit} [${readouts[12]?.sourceLabel}]
+14. Horizon Angular Velocity (Omega_H): ${readouts[13]?.value} ${readouts[13]?.unit} [${readouts[13]?.sourceLabel}]
+15. Hawking Temperature (T_H): ${readouts[14]?.value} ${readouts[14]?.unit} [${readouts[14]?.sourceLabel}]
+16. Bekenstein-Hawking Entropy (S_BH): ${readouts[15]?.value} ${readouts[15]?.unit} [${readouts[15]?.sourceLabel}]
 
 THEORETICAL CLASSIFICATION:
 - Event Horizons and Ergosphere: Analytical Kerr solutions
-- Optical and Asymptotic Observables: Exact Kerr quadrature (Bardeen 1973) + RK4 null geodesics`;
+- Optical and Asymptotic Observables: Exact Kerr quadrature (Bardeen 1973) + RK4 null geodesics
+- ISCO Energetics: Bardeen-Press-Teukolsky (1972) exact circular-orbit solution
+- Black-Hole Thermodynamics: Bekenstein-Hawking entropy + Hawking temperature (1974), exact`;
 
     navigator.clipboard.writeText(reportText);
     setCopied(true);

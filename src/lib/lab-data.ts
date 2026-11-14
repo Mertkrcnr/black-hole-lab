@@ -3,6 +3,12 @@ import {
   criticalImpactParameter,
   ergosphereRadius,
   gravitationalRadiusKm,
+  hawkingTemperatureK,
+  horizonAngularVelocity,
+  horizonAreaKm2,
+  horizonEntropyJK,
+  iscoRadius,
+  iscoSpecificEnergy,
   kerrEquatorialDeflection,
   kerrHorizons,
   PC_KM,
@@ -222,7 +228,7 @@ function formatFinite(value: number, digits: number) {
 }
 
 /**
- * 10 Required Scientific Observables
+ * Scientific Observables — 10 core + 6 advanced (ISCO energetics & thermodynamics)
  */
 export function getReadouts(p: Parameters): Readout[] {
   const spinClamped = clampSpin(p.spin);
@@ -240,6 +246,13 @@ export function getReadouts(p: Parameters): Readout[] {
   const schwarzschildDilation = staticTimeDilation(safeDilationDist, spinClamped);
   const safeMass = Math.max(p.mass, 0.1);
   const tidal = tidalAccelerationMs2(safeMass, p.distance, 1);
+  const isco = iscoRadius(spinClamped);
+  const eIsco = iscoSpecificEnergy(spinClamped);
+  const efficiency = (1 - eIsco) * 100;
+  const areaKm2 = horizonAreaKm2(safeMass, spinClamped);
+  const omegaH = horizonAngularVelocity(safeMass, spinClamped);
+  const tHawking = hawkingTemperatureK(safeMass, spinClamped);
+  const sBH = horizonEntropyJK(safeMass, spinClamped);
 
   return [
     {
@@ -341,6 +354,66 @@ export function getReadouts(p: Parameters): Readout[] {
       source: "kerr",
       sourceLabel: "Kerr · Riemann exact",
       note: "Radial Riemann tidal acceleration Δa = 2GM·L/r³ across a 1-meter baseline at distance r (SI units).",
+    },
+    {
+      id: "isco-radius",
+      label: "ISCO RADIUS",
+      symbol: "r_isco",
+      value: formatFinite(isco, 3),
+      unit: "GM/c²",
+      source: "kerr",
+      sourceLabel: "Kerr · Bardeen–Press–Teukolsky",
+      note: "Innermost stable circular orbit (prograde): 6M for a* = 0, → 1M for extremal spin. Sets the inner edge of a thin accretion disk; the retrograde ISCO grows up to 9M.",
+    },
+    {
+      id: "accretion-efficiency",
+      label: "ACCRETION EFFICIENCY",
+      symbol: "η",
+      value: formatFinite(efficiency, 2),
+      unit: "%",
+      source: "kerr",
+      sourceLabel: "Kerr · ISCO binding energy",
+      note: "Thin-disk radiative efficiency η = 1 − E_ISCO: the fraction of rest-mass energy radiated as matter spirals in to the ISCO. 5.72% for Schwarzschild; ≈32% at Thorne's a* = 0.998 limit; → 42.3% for extremal spin. This number powers quasars.",
+    },
+    {
+      id: "horizon-area",
+      label: "HORIZON AREA",
+      symbol: "A₊",
+      value: areaKm2.toExponential(3),
+      unit: "km²",
+      source: "kerr",
+      sourceLabel: "Kerr · Smarr exact",
+      note: "Event-horizon surface area A = 4π(r₊² + a²) r_g². Grows with mass, shrinks with spin. Hawking's area theorem: no classical process can ever reduce it.",
+    },
+    {
+      id: "horizon-angular-velocity",
+      label: "HORIZON ANGULAR VELOCITY",
+      symbol: "Ω_H",
+      value: omegaH.toExponential(3),
+      unit: "rad/s",
+      source: "kerr",
+      sourceLabel: "Kerr · exact",
+      note: "Frame-dragging rate at the horizon: Ω_H = a* c³/(2 r₊ GM). The engine of rotational energy extraction — Penrose process and Blandford–Znajek relativistic jets. Zero for Schwarzschild.",
+    },
+    {
+      id: "hawking-temperature",
+      label: "HAWKING TEMPERATURE",
+      symbol: "T_H",
+      value: tHawking.toExponential(3),
+      unit: "K",
+      source: "kerr",
+      sourceLabel: "Kerr · quantum (QFT in curved space)",
+      note: "T_H = ħc³√(1−a*²)/[4π G M k_B (1+√(1−a*²))]. ≈ 6.2×10⁻⁸ K per solar mass — cooler for heavier holes; vanishes at extremal spin. A quantum effect riding on an otherwise classical spacetime.",
+    },
+    {
+      id: "bekenstein-hawking-entropy",
+      label: "BEKENSTEIN–HAWKING ENTROPY",
+      symbol: "S_BH",
+      value: sBH.toExponential(3),
+      unit: "J/K",
+      source: "kerr",
+      sourceLabel: "Kerr · holographic bound",
+      note: "S = k_B c³ A/(4ħG): entropy scales with horizon AREA, not volume. S/k_B ≈ 1.05×10⁷⁷ per solar mass — the largest entropy of any object its size, saturating the holographic bound.",
     },
   ];
 }

@@ -12,6 +12,13 @@ import {
   staticTimeDilation,
   tidalAccelerationMs2,
   gravitationalRadiusKm,
+  hawkingTemperatureK,
+  horizonAngularVelocity,
+  horizonAreaFactor,
+  horizonAreaKm2,
+  horizonEntropyJK,
+  iscoSpecificAngularMomentum,
+  iscoSpecificEnergy,
 } from "./physics";
 
 /** Carter potential R and dR/dr for equatorial null rays (E = 1, M = 1). */
@@ -162,5 +169,50 @@ describe("observer physics", () => {
       (2 * 6.6743e-11 * 10 * 1.98847e30) /
       Math.pow(1000 * gravitationalRadiusKm(10) * 1000, 3);
     expect(tidalAccelerationMs2(10, 1000, 1)).toBeCloseTo(expected, 6);
+  });
+});
+
+describe("ISCO energetics & black-hole thermodynamics", () => {
+  it("ISCO specific energy: √(8/9) at a=0, decreasing with spin, → 1/√3 at extremal", () => {
+    expect(iscoSpecificEnergy(0)).toBeCloseTo(Math.sqrt(8 / 9), 4);
+    expect(iscoSpecificEnergy(0.5)).toBeLessThan(iscoSpecificEnergy(0));
+    expect(iscoSpecificEnergy(0.9)).toBeLessThan(iscoSpecificEnergy(0.5));
+    // Thorne's a* = 0.998 ceiling: η ≈ 32% → E ≈ 0.68, above the extremal 1/√3.
+    expect(iscoSpecificEnergy(0.998)).toBeGreaterThan(1 / Math.sqrt(3));
+    expect(iscoSpecificEnergy(0.998)).toBeLessThan(0.7);
+  });
+
+  it("ISCO specific angular momentum: 2√3 at a=0 (Schwarzschild)", () => {
+    expect(iscoSpecificAngularMomentum(0)).toBeCloseTo(2 * Math.sqrt(3), 4);
+  });
+
+  it("horizon area: 16π M² at a=0; SI value matches 4π(2r_g)² for Schwarzschild", () => {
+    expect(horizonAreaFactor(0)).toBeCloseTo(16 * Math.PI, 10);
+    expect(horizonAreaFactor(0.9)).toBeLessThan(horizonAreaFactor(0));
+    const expected = 4 * Math.PI * Math.pow(2 * gravitationalRadiusKm(10), 2);
+    expect(horizonAreaKm2(10, 0)).toBeCloseTo(expected, 4);
+  });
+
+  it("horizon angular velocity: 0 at a=0, positive and finite at a=0.9", () => {
+    expect(horizonAngularVelocity(10, 0)).toBe(0);
+    const w = horizonAngularVelocity(10, 0.9);
+    expect(w).toBeGreaterThan(0);
+    expect(Number.isFinite(w)).toBe(true);
+  });
+
+  it("Hawking temperature: 6.17e-8 K per M☉ at a=0; decreases with spin; → 0 at extremal", () => {
+    const t = hawkingTemperatureK(1, 0);
+    expect(t).toBeGreaterThan(6.0e-8);
+    expect(t).toBeLessThan(6.4e-8);
+    expect(hawkingTemperatureK(1, 0.9)).toBeLessThan(t);
+    // Exact analytic Kerr ratio: T(a)/T(0) = 2√(1−a²)/(1+√(1−a²)).
+    const s = Math.sqrt(1 - 0.9995 ** 2);
+    expect(hawkingTemperatureK(1, 0.9995) / t).toBeCloseTo((2 * s) / (1 + s), 10);
+  });
+
+  it("Bekenstein–Hawking entropy: S/k_B ≈ 1.05e77 for 1 M☉ Schwarzschild", () => {
+    const sOverKb = horizonEntropyJK(1, 0) / 1.380649e-23;
+    expect(sOverKb).toBeGreaterThan(1.0e77);
+    expect(sOverKb).toBeLessThan(1.1e77);
   });
 });
