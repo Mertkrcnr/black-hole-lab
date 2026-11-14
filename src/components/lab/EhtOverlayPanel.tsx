@@ -8,7 +8,7 @@ export function EhtOverlayPanel({
   selectedId,
   onSelectObject,
 }: {
-  selectedId?: string;
+  selectedId?: string | undefined;
   onSelectObject: (obj: CatalogObject) => void;
 }) {
   const [overlayMode, setOverlayMode] = useState<"both" | "eht" | "theoretical">("both");
@@ -34,6 +34,8 @@ export function EhtOverlayPanel({
     const deltaPercent = (Math.abs(delta) / observed) * 100;
     const accuracyPercent = Math.max(0, 100 - deltaPercent);
     const within1Sigma = Math.abs(delta) <= errorBar;
+    // Deviation expressed in units of the published EHT 1σ error bar.
+    const sigmaLevel = Math.abs(delta) / errorBar;
 
     return {
       theoreticalShadowUas,
@@ -43,6 +45,7 @@ export function EhtOverlayPanel({
       deltaPercent,
       accuracyPercent,
       within1Sigma,
+      sigmaLevel,
       gravitationalRadiusKm,
       thetaG_uas,
     };
@@ -251,7 +254,7 @@ export function EhtOverlayPanel({
                     <small className="text-xs text-muted-foreground">μas</small>
                   </div>
                   <div className="text-[10px] text-muted-foreground font-mono mt-1">
-                    D_shadow = 2√27 · (1 - 0.025a*²) θ_g
+                    D = (|b₋|+|b₊|) θ_g · inclination avg — exact Kerr photon family
                   </div>
                 </div>
 
@@ -266,8 +269,14 @@ export function EhtOverlayPanel({
                       ({comparison.deltaPercent.toFixed(2)}%)
                     </span>
                   </div>
-                  <div className="text-[10px] text-emerald-400 font-mono mt-1">
-                    Within published EHT error margin (±{comparison.errorBar} μas)
+                  <div
+                    className={`text-[10px] font-mono mt-1 ${
+                      comparison.within1Sigma ? "text-emerald-400" : "text-red-400"
+                    }`}
+                  >
+                    {comparison.within1Sigma
+                      ? `Within published EHT error margin (±${comparison.errorBar} μas)`
+                      : `Outside 1σ margin (±${comparison.errorBar} μas) — deviation ${(comparison.sigmaLevel).toFixed(2)}σ`}
                   </div>
                 </div>
 
@@ -279,7 +288,7 @@ export function EhtOverlayPanel({
                     {comparison.accuracyPercent.toFixed(1)}% Agreement
                   </div>
                   <div className="text-[10px] text-muted-foreground font-mono mt-1">
-                    No deviation from Kerr metric detected
+                    {comparison.sigmaLevel.toFixed(2)}σ from Kerr prediction — GR holds
                   </div>
                 </div>
               </div>

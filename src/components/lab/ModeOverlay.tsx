@@ -31,7 +31,7 @@ export function ModeOverlay({
       {mode === "real-data" && (
         <p className="mode-note">
           {selected
-            ? `${selected.name} · ${selected.distance} · catalog mass ${selected.mass.toLocaleString("en-US")} M☉`
+            ? `${selected.name} · ${selected.distanceStr} · catalog mass ${selected.mass.toLocaleString("en-US")} M☉`
             : "Open the Real Objects catalog to load an astrophysical target into the laboratory."}
         </p>
       )}

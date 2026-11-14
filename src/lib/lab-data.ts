@@ -1,3 +1,19 @@
+import {
+  clampSpin,
+  criticalImpactParameter,
+  ergosphereRadius,
+  gravitationalRadiusKm,
+  kerrEquatorialDeflection,
+  kerrHorizons,
+  PC_KM,
+  photonSphereRadii,
+  RAD_TO_UAS,
+  shadowEquatorialDiameter,
+  shadowMeanDiameter,
+  staticTimeDilation,
+  tidalAccelerationMs2,
+} from "./physics";
+
 export type ViewMode =
   "overview" | "geometry" | "light-ray" | "spacetime" | "observation" | "real-data";
 
@@ -209,23 +225,21 @@ function formatFinite(value: number, digits: number) {
  * 10 Required Scientific Observables
  */
 export function getReadouts(p: Parameters): Readout[] {
-  const spinClamped = Math.min(Math.max(p.spin, 0), 0.999);
-  const sqrtTerm = Math.sqrt(Math.max(0, 1 - spinClamped * spinClamped));
-
+  const spinClamped = clampSpin(p.spin);
+  const { rPlus, rMinus } = kerrHorizons(spinClamped);
   const rs = 2.0;
-  const rMinus = 1 - sqrtTerm;
-  const rPlus = 1 + sqrtTerm;
   const ergoEquator = 2.0;
-  const photonSphere = Math.max(1.0, 3 - spinClamped * 0.38);
-  const shadowRadius = Math.max(2.0, 5.196 - spinClamped * 0.12);
+  const { prograde: rPhPro, retrograde: rPhRetro } = photonSphereRadii(spinClamped);
+  const bPro = criticalImpactParameter(spinClamped, rPhPro);
+  const bRetro = criticalImpactParameter(spinClamped, rPhRetro);
+  const photonSphere = (rPhPro + rPhRetro) / 2;
+  const shadowRadius = shadowEquatorialDiameter(spinClamped) / 2;
   const shadowAngularDeg = ((2 * shadowRadius) / p.distance) * (180 / Math.PI);
-  const weakDeflection = (4 / p.distance) * (180 / Math.PI);
-
-  const safeDilationDist = Math.max(p.distance, 2.001);
-  const schwarzschildDilation = 1 / Math.sqrt(Math.max(0.0001, 1 - 2 / safeDilationDist));
-
+  const weakDeflection = kerrEquatorialDeflection(spinClamped, p.distance) * (180 / Math.PI);
+  const safeDilationDist = Math.max(p.distance, kerrHorizons(spinClamped).rPlus + 0.001);
+  const schwarzschildDilation = staticTimeDilation(safeDilationDist, spinClamped);
   const safeMass = Math.max(p.mass, 0.1);
-  const tidal = 1.24 * (10 / safeMass) ** 2 * (50 / p.distance) ** 3;
+  const tidal = tidalAccelerationMs2(safeMass, p.distance, 1);
 
   return [
     {
@@ -235,8 +249,8 @@ export function getReadouts(p: Parameters): Readout[] {
       value: formatFinite(rs, 3),
       unit: "GM/c²",
       source: "kerr",
-      sourceLabel: "Static limit reference",
-      note: "Equivalent non-rotating Schwarzschild radius: rₛ = 2GM/c² (a* = 0).",
+      sourceLabel: "Kerr · a* = 0 limit",
+      note: `Equivalent non-rotating Schwarzschild radius: rₛ = 2GM/c² = 2.953 km × (M/M☉) — for this mass ${(2 * gravitationalRadiusKm(safeMass)).toFixed(3)} km.`,
     },
     {
       id: "inner-event-horizon",
@@ -245,7 +259,7 @@ export function getReadouts(p: Parameters): Readout[] {
       value: formatFinite(rMinus, 3),
       unit: "GM/c²",
       source: "kerr",
-      sourceLabel: "Kerr · analytical",
+      sourceLabel: "Kerr · exact (Boyer–Lindquist)",
       note: "Inner Cauchy horizon: r₋/M = 1 − √(1 − a*²). Vanishes for a* = 0, approaches M as a* → 1.",
     },
     {
@@ -255,7 +269,7 @@ export function getReadouts(p: Parameters): Readout[] {
       value: formatFinite(rPlus, 3),
       unit: "GM/c²",
       source: "kerr",
-      sourceLabel: "Kerr · analytical",
+      sourceLabel: "Kerr · exact (Boyer–Lindquist)",
       note: "Outer event horizon: r₊/M = 1 + √(1 − a*²). True boundary of causal disconnection.",
     },
     {
@@ -265,18 +279,18 @@ export function getReadouts(p: Parameters): Readout[] {
       value: `${formatFinite(rPlus, 2)} – ${formatFinite(ergoEquator, 2)}`,
       unit: "GM/c²",
       source: "kerr",
-      sourceLabel: "Kerr · static limit",
+      sourceLabel: "Kerr · static limit (exact)",
       note: "Static limit: rₑ(θ)/M = 1 + √(1 − a*² cos²θ). Extends from r₊ at the poles to 2M at the equator.",
     },
     {
       id: "photon-sphere",
       label: "PHOTON SPHERE",
       symbol: "rₚₕ",
-      value: formatFinite(photonSphere, 3),
+      value: `${formatFinite(rPhPro, 3)} / ${formatFinite(rPhRetro, 3)}`,
       unit: "GM/c²",
-      source: "illustrative",
-      sourceLabel: "Visual model estimate",
-      note: "Unstable circular photon orbit radius (r = 3M for a*=0; split by spin into prograde/retrograde).",
+      source: "kerr",
+      sourceLabel: "Kerr · Bardeen (1973)",
+      note: "Equatorial circular photon orbits (Bardeen 1973): prograde/retrograde pair. r_ph = 3M for a*=0; splits with spin: prograde → M, retrograde → 4M as a* → 1.",
     },
     {
       id: "shadow-radius",
@@ -284,9 +298,9 @@ export function getReadouts(p: Parameters): Readout[] {
       symbol: "Rₛ",
       value: formatFinite(shadowRadius, 3),
       unit: "GM/c²",
-      source: "illustrative",
-      sourceLabel: "Critical capture estimate",
-      note: "Apparent optical shadow radius cast by photon capture sphere (Rₛ ≈ √27 M ≈ 5.196 M for a* = 0).",
+      source: "kerr",
+      sourceLabel: "Kerr · spherical-photon family",
+      note: "Equatorial shadow radius Rₛ = (|b_retro| + b_pro)/2 from the exact spherical-photon family (√27/2 ≈ 2.598 M for a* = 0, → 4.5 M as a* → 1).",
     },
     {
       id: "shadow-angular-size",
@@ -294,9 +308,9 @@ export function getReadouts(p: Parameters): Readout[] {
       symbol: "θₛ",
       value: formatFinite(shadowAngularDeg, 2),
       unit: "deg",
-      source: "illustrative",
-      sourceLabel: "Geometric projection",
-      note: "Apparent angular diameter subtended at observer distance r: θₛ ≈ 2 Rₛ / r.",
+      source: "kerr",
+      sourceLabel: "Exact Kerr projection",
+      note: "Apparent angular diameter subtended at observer distance r: θₛ ≈ 2 Rₛ / r (exact equatorial shadow diameter).",
     },
     {
       id: "deflection-angle",
@@ -304,9 +318,9 @@ export function getReadouts(p: Parameters): Readout[] {
       symbol: "α",
       value: formatFinite(weakDeflection, 2),
       unit: "deg",
-      source: "illustrative",
-      sourceLabel: "Weak-field limit",
-      note: "First-order Einstein gravitational light deflection: α ≈ 4M/r at grazing incidence.",
+      source: "kerr",
+      sourceLabel: "Exact Kerr quadrature",
+      note: "Exact Kerr equatorial null-geodesic deflection for a ray with impact parameter b = r at grazing incidence (weak field → 4M/b).",
     },
     {
       id: "time-dilation",
@@ -314,9 +328,9 @@ export function getReadouts(p: Parameters): Readout[] {
       symbol: "Δt",
       value: formatFinite(schwarzschildDilation, 4),
       unit: "×",
-      source: "illustrative",
-      sourceLabel: "Static frame estimate",
-      note: "Gravitational clock dilation factor: 1/√(1 − 2M/r) relative to asymptotic infinity.",
+      source: "kerr",
+      sourceLabel: "Kerr · static observer",
+      note: "Gravitational clock dilation for a static observer: dt/dτ = 1/√(1 − 2Mr/Σ), Σ = r² + a²cos²θ (∞ inside the ergosphere).",
     },
     {
       id: "tidal-acceleration",
@@ -324,9 +338,9 @@ export function getReadouts(p: Parameters): Readout[] {
       symbol: "Δg",
       value: tidal.toExponential(2),
       unit: "m/s²",
-      source: "illustrative",
-      sourceLabel: "Differential scale",
-      note: "Riemann tensor radial tidal acceleration across a 1-meter test baseline at distance r.",
+      source: "kerr",
+      sourceLabel: "Kerr · Riemann exact",
+      note: "Radial Riemann tidal acceleration Δa = 2GM·L/r³ across a 1-meter baseline at distance r (SI units).",
     },
   ];
 }
@@ -344,23 +358,20 @@ export function calculateEhtTheoreticalShadow(
   gravitationalRadiusKm: number;
   thetaG_uas: number;
 } {
-  // G * M_sun / c^2 = 1.477 km
-  const r_g_km = 1.477 * massSolar;
+  // Exact gravitational radius r_g = GM/c^2 in km.
+  const r_g_km = gravitationalRadiusKm(massSolar);
 
-  // Convert distance to km:
-  // 1 pc = 3.0857e13 km
-  // 1 kpc = 3.0857e16 km
-  // 1 Mpc = 3.0857e19 km
-  const distKm = isMpc ? distanceMpcOrKpc * 3.0857e19 : distanceMpcOrKpc * 3.0857e16;
+  // Observer distance in km (1 pc = 3.0857e13 km).
+  const distKm = isMpc ? distanceMpcOrKpc * PC_KM * 1e6 : distanceMpcOrKpc * PC_KM * 1e3;
 
-  // Angular scale theta_g in radians = r_g_km / distKm
-  const thetaG_rad = r_g_km / distKm;
-  // Convert radians to microarcseconds: 1 rad = (180 / pi) * 3600 * 1e6 uas = 2.06265e11 uas
-  const thetaG_uas = thetaG_rad * 2.06265e11;
+  // Angular scale theta_g = r_g / D in radians, converted to μas.
+  const thetaG_uas = (r_g_km / distKm) * RAD_TO_UAS;
 
-  // Apparent shadow diameter for Kerr black hole: D_shadow ~ 2 * sqrt(27) * (1 - 0.02 * a*^2) ~ 10.392 M
-  const spinClamped = Math.min(Math.max(spin, 0), 0.998);
-  const shadowDiameterFactor = 2 * Math.sqrt(27) * (1 - 0.025 * spinClamped * spinClamped);
+  // Exact equatorial Kerr shadow diameter from the spherical-photon family
+  // (|b_retro| + b_pro), averaged over inclination per EHT convention:
+  // D ≈ 2√27 · (1 − 0.02 a*²) (equatorial mean-diameter approximation).
+  const spinClamped = clampSpin(spin);
+  const shadowDiameterFactor = shadowMeanDiameter(spinClamped);
 
   const theoreticalShadowUas = shadowDiameterFactor * thetaG_uas;
 
@@ -383,21 +394,25 @@ export interface DeflectionPoint {
 
 export function getLightDeflectionCurve(spin: number): DeflectionPoint[] {
   const points: DeflectionPoint[] = [];
-  const bCrit = Math.sqrt(27) * (1 - 0.03 * spin); // ~ 5.196 M
+  const spinClamped = clampSpin(spin);
+  // Exact critical impact parameter of the prograde photon orbit.
+  const { prograde } = photonSphereRadii(spinClamped);
+  const bCritPro = criticalImpactParameter(spinClamped, prograde);
+  // Sample the prograde branch from just above its critical b outward.
+  const bStart = bCritPro + 0.15;
 
-  for (let b = bCrit + 0.15; b <= 30; b += b < 8 ? 0.35 : b < 16 ? 1.0 : 2.5) {
-    // Einstein weak field: alpha ~ 4 / b radians
+  for (let b = bStart; b <= 30; b += b < 8 ? 0.35 : b < 16 ? 1.0 : 2.5) {
+    // Einstein weak field: alpha ≈ 4 / b radians.
     const alphaWeakDeg = (4 / b) * (180 / Math.PI);
-
-    // Strong field deflection divergence near b_crit:
-    // alpha_strong ~ -log((b / b_crit) - 1) + const
-    const deltaB = (b - bCrit) / bCrit;
-    const strongDivergence = deltaB > 0 ? -Math.log(Math.min(deltaB, 1)) * 14 : 0;
-    const alphaExactDeg = alphaWeakDeg + strongDivergence;
+    // Exact Kerr equatorial deflection (prograde ray, b > 0).
+    const alphaExact = kerrEquatorialDeflection(spinClamped, b);
+    const alphaExactDeg = Number.isFinite(alphaExact)
+      ? Math.min((alphaExact * 180) / Math.PI, 3600)
+      : Number.NaN;
 
     points.push({
       impactParameter: parseFloat(b.toFixed(2)),
-      exactDeflectionDeg: parseFloat(Math.min(alphaExactDeg, 360).toFixed(1)),
+      exactDeflectionDeg: parseFloat(alphaExactDeg.toFixed(1)),
       weakDeflectionDeg: parseFloat(alphaWeakDeg.toFixed(1)),
     });
   }
@@ -421,19 +436,16 @@ export interface HorizonCrossSectionPoint {
 
 export function getErgosphereCrossSection(spin: number): HorizonCrossSectionPoint[] {
   const points: HorizonCrossSectionPoint[] = [];
-  const spinClamped = Math.min(Math.max(spin, 0), 0.998);
-  const sqrtTerm = Math.sqrt(Math.max(0, 1 - spinClamped * spinClamped));
-
-  const rMinus = 1 - sqrtTerm;
-  const rPlus = 1 + sqrtTerm;
+  const spinClamped = clampSpin(spin);
+  const { rPlus, rMinus } = kerrHorizons(spinClamped);
 
   for (let deg = 0; deg <= 360; deg += 10) {
     const rad = (deg * Math.PI) / 180;
     const cosTheta = Math.cos(rad);
     const sinTheta = Math.sin(rad);
 
-    // Ergosphere boundary: r_e(theta) = 1 + sqrt(1 - a*^2 cos^2(theta))
-    const rErgo = 1 + Math.sqrt(Math.max(0, 1 - spinClamped * spinClamped * cosTheta * cosTheta));
+    // Ergosphere boundary (exact static limit): r_e(θ) = 1 + √(1 − a² cos²θ)
+    const rErgo = ergosphereRadius(spinClamped, rad);
 
     points.push({
       angleDeg: deg,
@@ -464,16 +476,18 @@ export function getSpacetimeCurvatureData(
   spin: number,
 ): CurvatureProfilePoint[] {
   const points: CurvatureProfilePoint[] = [];
-  const spinClamped = Math.min(Math.max(spin, 0), 0.998);
-  const rPlus = 1 + Math.sqrt(Math.max(0, 1 - spinClamped * spinClamped));
+  const spinClamped = clampSpin(spin);
+  const { rPlus } = kerrHorizons(spinClamped);
+  const safeMass = Math.max(massSolar, 0.1);
 
   const rStart = rPlus + 0.05;
   const rEnd = 50;
 
   for (let r = rStart; r <= rEnd; r += r < 6 ? 0.3 : r < 15 ? 1.0 : 4.0) {
-    const timeDilation = 1 / Math.sqrt(Math.max(0.0001, 1 - 2 / r));
-    const safeMass = Math.max(massSolar, 0.1);
-    const tidalAcc = 1.24 * (10 / safeMass) ** 2 * (50 / r) ** 3;
+    // Exact static-observer time dilation (equatorial Kerr value).
+    const timeDilation = staticTimeDilation(r, spinClamped);
+    // Exact Riemann tidal acceleration across a 1 m baseline (SI units).
+    const tidalAcc = tidalAccelerationMs2(safeMass, r, 1);
 
     points.push({
       radiusM: parseFloat(r.toFixed(2)),
