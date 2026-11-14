@@ -19,6 +19,7 @@ import {
   Play,
   RotateCcw,
   Server,
+  Share2,
   Waves,
 } from "lucide-react";
 import { LabShell } from "@/components/lab/LabShell";
@@ -51,9 +52,29 @@ import {
 const BlackHoleScene = lazy(() => import("@/components/lab/BlackHoleScene"));
 
 export const Route = createFileRoute("/")({
-  validateSearch: (search: Record<string, unknown>): { object?: string | undefined } => ({
-    object: typeof search["object"] === "string" ? search["object"] : undefined,
-  }),
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    object?: string | undefined;
+    M?: number | undefined;
+    a?: number | undefined;
+    r?: number | undefined;
+    i?: number | undefined;
+  } => {
+    // Accept both string and number forms — query params arrive as strings.
+    const num = (key: string): number | undefined => {
+      const v = search[key];
+      const n = typeof v === "number" ? v : Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
+    return {
+      object: typeof search["object"] === "string" ? search["object"] : undefined,
+      M: num("M"),
+      a: num("a"),
+      r: num("r"),
+      i: num("i"),
+    };
+  },
   head: () => ({
     meta: [
       { title: "Simulation — BLACK HOLE LAB" },
@@ -85,7 +106,7 @@ const viewIcons: Record<ViewMode, typeof Orbit> = {
 };
 
 function Simulation() {
-  const { object } = Route.useSearch();
+  const { object, M, a, r, i } = Route.useSearch();
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
 
@@ -100,17 +121,49 @@ function Simulation() {
   const [reportOpen, setReportOpen] = useState(false);
   const [fastApiModalOpen, setFastApiModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const selected = objects.find((o) => o.id === object);
 
+  // Bootstrap physics parameters from shareable URL (?M=&a=&r=&i=) once on mount.
+  useEffect(() => {
+    if (M === undefined && a === undefined && r === undefined && i === undefined) return;
+    setParameters((p) => ({
+      ...p,
+      ...(M !== undefined ? { mass: M } : {}),
+      ...(a !== undefined ? { spin: a } : {}),
+      ...(r !== undefined ? { distance: r } : {}),
+      ...(i !== undefined ? { cameraAngle: i } : {}),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Apply object preset when ?object= is present, without overriding any
+  // explicitly shared M/a URL params.
   useEffect(() => {
     if (selected) {
-      setParameters((p) => ({ ...p, mass: selected.mass, spin: selected.spin }));
+      setParameters((p) => ({
+        ...p,
+        ...(M === undefined ? { mass: selected.mass } : {}),
+        ...(a === undefined ? { spin: selected.spin } : {}),
+      }));
       setMode("real-data");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
   const readouts = getReadouts(parameters);
+
+  // Mirror physics state into the URL as shareable ?M=&a=&r=&i= params.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("M", String(+parameters.mass.toPrecision(6)));
+    params.set("a", String(+parameters.spin.toFixed(3)));
+    params.set("r", String(Math.round(parameters.distance)));
+    params.set("i", String(Math.round(parameters.cameraAngle)));
+    const qs = params.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }, [parameters]);
   const set = (key: keyof Parameters, value: number) => {
     setParameters((p) => ({ ...p, [key]: value }));
   };
@@ -161,6 +214,13 @@ THEORETICAL CLASSIFICATION:
     navigator.clipboard.writeText(reportText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // URL is kept in sync with physics state, so location.href IS the share link.
+  const shareView = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
   };
 
   const massLabel =
@@ -260,6 +320,20 @@ THEORETICAL CLASSIFICATION:
             >
               <Layers className="size-3.5" />
               NASA EHT Validation
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-[11px] h-7 font-mono gap-1.5"
+              onClick={shareView}
+              aria-label="Copy shareable link to this exact view"
+            >
+              {shareCopied ? (
+                <Check className="size-3.5 text-signal" />
+              ) : (
+                <Share2 className="size-3.5" />
+              )}
+              {shareCopied ? "Link Copied" : "Share View"}
             </Button>
           </div>
         </div>
