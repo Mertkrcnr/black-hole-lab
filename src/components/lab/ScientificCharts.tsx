@@ -17,9 +17,10 @@ import {
   type Parameters,
 } from "@/lib/lab-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ShadowRayTrace } from "@/components/lab/ShadowRayTrace";
 
 export function ScientificCharts({ parameters }: { parameters: Parameters }) {
-  const [activeTab, setActiveTab] = useState<"deflection" | "ergo" | "tidal">("deflection");
+  const [activeTab, setActiveTab] = useState<"deflection" | "ergo" | "tidal" | "shadow">("deflection");
 
   const deflectionData = useMemo(() => getLightDeflectionCurve(parameters.spin), [parameters.spin]);
 
@@ -54,6 +55,9 @@ export function ScientificCharts({ parameters }: { parameters: Parameters }) {
           </TabsTrigger>
           <TabsTrigger value="tidal" className="text-xs font-mono">
             Time Dilation & Tidal Shear
+          </TabsTrigger>
+          <TabsTrigger value="shadow" className="text-xs font-mono">
+            Shadow Ray Trace
           </TabsTrigger>
         </TabsList>
 
@@ -371,7 +375,12 @@ export function ScientificCharts({ parameters }: { parameters: Parameters }) {
             </ResponsiveContainer>
           </div>
         </TabsContent>
-      </Tabs>
+              {/* Tab 4: Geodesic Shadow Ray Trace */}
+        <TabsContent value="shadow" className="mt-3">
+          <ShadowRayTrace parameters={parameters} />
+        </TabsContent>
+
+</Tabs>
     </div>
   );
 }

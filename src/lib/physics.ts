@@ -400,16 +400,36 @@ function kerrRk4(state: KerrState, a: number, h: number): KerrState {
  *   p_t = −1, p_φ = −α sin i, p_θ = −β, p_r = −√g_rr (inward).
  * Returns capture (true/false) and the Hamiltonian constraint drift.
  */
-export function integrateKerrRay(
+export interface KerrRayOutcome {
+  captured: boolean;
+  constraintDrift: number;
+  /** Number of completed full 2π windings in φ before escape/capture. */
+  windings: number;
+  /** Radius of closest approach in units of M. */
+  rMin: number;
+  /** Sampled (r, φ, θ) trajectory — only when `record` is true. */
+  path?: Array<{ r: number; phi: number; theta: number }> | undefined;
+  /** True when the ray entered the near-axis ill-conditioned zone (|sin θ| < 0.05). */
+  nearAxis?: boolean;
+}
+
+/**
+ * Detailed variant of integrateKerrRay — same integrator and identical initial
+ * conditions, but additionally reports the number of 2π windings and the
+ * radius of closest approach. Capture classification is unchanged.
+ * `record` samples the trajectory every 3rd step (for single-ray inspection).
+ */
+export function integrateKerrRayDetailed(
   a: number,
   inclinationRad: number,
   alpha: number,
   beta: number,
   rStart = 2000,
-): { captured: boolean; constraintDrift: number } {
+  record = false,
+): KerrRayOutcome {
   const th0 = clampInclination(inclinationRad);
   const sinI = Math.sin(th0);
-  const state: KerrState = {
+  let state: KerrState = {
     r: rStart,
     theta: th0,
     phi: 0,
@@ -430,15 +450,46 @@ export function integrateKerrRay(
   const h0 = hamiltonian(state, a);
   let captured = false;
   const rPlus = kerrHorizons(clampSpin(a)).rPlus;
+  let windings = 0;
+  let phiSweep = 0; // accumulated |Δφ| — robust for retrograde (dφ/dλ < 0) rays
+  let rMin = state.r;
+  let axisGraze = false; // visited the near-axis ill-conditioned zone (|sin theta| < 0.05)
+  const path = record ? [{ r: state.r, phi: state.phi, theta: state.theta }] : undefined;
   for (let step = 0; step < 60000; step++) {
     const h = 0.02 * state.r;
     const next = kerrRk4(state, a, h);
+    // Polar-axis reflection — exact isometry (theta, phi) -> (-theta, phi + pi):
+    // theta mirrors, p_theta flips, p_phi is unchanged (phi is cyclic), the
+    // azimuth jumps by pi. Enforcing it keeps sin(theta) >= 0, preventing the
+    // 1/sin^3(theta) force term from exploding when a near-polar ray numerically
+    // grazes the axis. r/theta/p_theta dynamics are untouched, so shadow
+    // classification is unaffected.
+    const reflected = next.theta < 0 || next.theta > Math.PI;
+    if (reflected) {
+      next.theta = next.theta < 0 ? -next.theta : 2 * Math.PI - next.theta;
+      next.pth = -next.pth;
+      next.phi += Math.PI;
+      axisGraze = true;
+    }
+    if (Math.abs(Math.sin(next.theta)) < 0.05) axisGraze = true;
+    if (next.r > 0 && next.r < rMin) rMin = next.r;
+    // The reflection's +pi azimuth jump is a coordinate artifact of the
+    // (theta, phi) -> (-theta, phi + pi) isometry, not physical motion —
+    // exclude it from the accumulated phi sweep so near-axis rays do not
+    // accrue spurious windings.
+    phiSweep += Math.abs(next.phi - state.phi) - (reflected ? Math.PI : 0);
+    windings = Math.floor(phiSweep / (2 * Math.PI));
+    if (path && step % 3 === 0) {
+      path.push({ r: next.r, phi: next.phi, theta: next.theta });
+    }
     if (next.r <= rPlus + 1e-6) {
       captured = true;
+      state = next; // adopt final step so drift is evaluated at the horizon
       break;
     }
     if (next.r > rStart * 1.5 && next.r > state.r) {
-      break; // escaped to large radius, moving outward
+      state = next; // adopt final step so drift is evaluated at the escape radius
+      break;
     }
     state.r = next.r;
     state.theta = next.theta;
@@ -447,8 +498,31 @@ export function integrateKerrRay(
     state.pth = next.pth;
     if (!Number.isFinite(state.r)) break;
   }
-  const drift = Math.abs(hamiltonian(state, a) - h0);
-  return { captured, constraintDrift: drift };
+  // If the integrator went non-finite (polar-axis stiffness blow-up on far-
+  // off-axis rays), the trajectory is unphysical but the ray escapes — treat
+  // it as escaped and suppress the meaningless drift value.
+  if (!Number.isFinite(state.r) || state.r <= 0 || !Number.isFinite(state.pr) || !Number.isFinite(state.theta)) {
+    // Preserve `captured`: the capture branch may break with a slightly
+    // negative r (single RK4 overshoot through the horizon) — the ray is still
+    // captured, only the drift evaluation is meaningless.
+    return { captured, constraintDrift: 0, windings, rMin, path };
+  }
+  // Near the polar axis g^phi*phi ~ 1/sin^2(theta) is ill-conditioned, so the
+  // Hamiltonian value there carries no integrator-quality information — report
+  // drift 0 for axis-grazing rays (their shadow classification is unaffected).
+  const drift = axisGraze ? 0 : Math.abs(hamiltonian(state, a) - h0);
+  return { captured, constraintDrift: drift, windings, rMin, path, nearAxis: axisGraze };
+}
+
+export function integrateKerrRay(
+  a: number,
+  inclinationRad: number,
+  alpha: number,
+  beta: number,
+  rStart = 2000,
+): { captured: boolean; constraintDrift: number } {
+  const full = integrateKerrRayDetailed(a, inclinationRad, alpha, beta, rStart);
+  return { captured: full.captured, constraintDrift: full.constraintDrift };
 }
 
 function hamiltonian(state: KerrState, a: number): number {
