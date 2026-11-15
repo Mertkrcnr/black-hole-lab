@@ -78,3 +78,8 @@ node scripts/verify-nasa-live.mjs   # live NASA API probe
 ## Tech Stack
 
 TanStack Start (React 19 + TypeScript + Vite), TanStack Router/Query, Three.js + @react-three/fiber, Tailwind CSS, Radix UI, recharts, vitest.
+
+## Credits
+
+- **[Mert Karaçınar](https://github.com/Mertkrcnr)** \- project lead, physics engine and application
+- **[Bahar Yıldız](https://github.com/bahar-git4)** \- contributor
