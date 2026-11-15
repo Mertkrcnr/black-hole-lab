@@ -31,6 +31,7 @@ import { ModeOverlay } from "@/components/lab/ModeOverlay";
 import { ParameterControl } from "@/components/lab/ParameterControl";
 import { ScientificCharts } from "@/components/lab/ScientificCharts";
 import { EhtOverlayPanel } from "@/components/lab/EhtOverlayPanel";
+import { PC_KM, RAD_TO_UAS } from "@/lib/physics";
 import { NasaProvenanceBand } from "@/components/lab/NasaProvenanceBand";
 import { FastApiBridgeModal } from "@/components/lab/FastApiBridgeModal";
 import { Button } from "@/components/ui/button";
@@ -184,6 +185,30 @@ function Simulation() {
       delta,
       sigma: Math.abs(delta) / selected.ehtData.shadowErrorUas,
     };
+  }, [selected, parameters]);
+  // Human-scale anchor: translate the live theoretical shadow into Solar-System terms.
+  const scaleAnchor = useMemo(() => {
+    if (!selected) return null;
+    const isMpc = !!selected.distanceMpc;
+    const dist = isMpc ? selected.distanceMpc! : selected.distanceKpc!;
+    const { theoreticalShadowUas } = calculateEhtTheoreticalShadow(
+      parameters.mass,
+      dist,
+      isMpc,
+      parameters.spin,
+    );
+    const distKm = isMpc ? dist * PC_KM * 1e6 : dist * PC_KM * 1e3;
+    const diameterKm = (theoreticalShadowUas / RAD_TO_UAS) * distKm;
+    const neptuneOrbitKm = 9.0e9; // Neptune orbital diameter
+    const mercuryOrbitKm = 1.16e8; // Mercury orbital diameter
+    const earthKm = 12742; // mean diameter
+    if (diameterKm >= neptuneOrbitKm) {
+      return `SCALE · shadow spans ${(diameterKm / neptuneOrbitKm).toFixed(0)}× Neptune's orbit — the entire Solar System fits inside it.`;
+    }
+    if (diameterKm >= mercuryOrbitKm) {
+      return `SCALE · shadow spans ${(diameterKm / mercuryOrbitKm).toFixed(2)}× Mercury's orbit — smaller than our inner Solar System.`;
+    }
+    return `SCALE · shadow spans only ${diameterKm.toFixed(0)} km — a stellar-mass black hole compressed below its own horizon.`;
   }, [selected, parameters]);
 
   // Bootstrap physics parameters from shareable URL (?M=&a=&r=&i=) once on mount.
@@ -516,6 +541,9 @@ THEORETICAL CLASSIFICATION:
                 ehtBadge.delta >= 0 ? "+" : "−"
               }${Math.abs(ehtBadge.delta).toFixed(1)} μas (${ehtBadge.sigma.toFixed(1)}σ) ↗`}
             </button>
+          )}
+          {scaleAnchor && (
+            <p className="technical text-[10px] text-signal/80 mt-1">{scaleAnchor}</p>
           )}
 
           {/* Workflow Stepper */}

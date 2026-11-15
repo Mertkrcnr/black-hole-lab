@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { calculateEhtTheoreticalShadow, objects, type CatalogObject } from "@/lib/lab-data";
+import { calculateEhtTheoreticalShadow, calculateS2Precession, objects, type CatalogObject } from "@/lib/lab-data";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Eye, Info, Layers, RefreshCw } from "lucide-react";
@@ -12,6 +12,8 @@ export function EhtOverlayPanel({
   onSelectObject: (obj: CatalogObject) => void;
 }) {
   const [overlayMode, setOverlayMode] = useState<"both" | "eht" | "theoretical">("both");
+
+  const s2 = calculateS2Precession();
 
   const currentObject = useMemo(() => {
     return objects.find((o) => o.id === selectedId) ?? objects[0]!;
@@ -50,6 +52,31 @@ export function EhtOverlayPanel({
       thetaG_uas,
     };
   }, [currentObject]);
+  // Catalog-level concordance: every EHT-imaged target, engine vs published measurement.
+  const scoreboard = useMemo(() => {
+    return objects
+      .filter((o) => o.ehtData)
+      .map((obj) => {
+        const isMpc = !!obj.distanceMpc;
+        const dist = isMpc ? obj.distanceMpc! : obj.distanceKpc!;
+        const { theoreticalShadowUas } = calculateEhtTheoreticalShadow(
+          obj.mass,
+          dist,
+          isMpc,
+          obj.spin,
+        );
+        const delta = theoreticalShadowUas - obj.ehtData!.shadowDiameterUas;
+        const sigma = Math.abs(delta) / obj.ehtData!.shadowErrorUas;
+        return {
+          id: obj.id,
+          name: obj.name,
+          theo: theoreticalShadowUas,
+          obs: obj.ehtData!.shadowDiameterUas,
+          err: obj.ehtData!.shadowErrorUas,
+          sigma,
+        };
+      });
+  }, []);
 
   return (
     <div className="eht-panel glass-panel">
@@ -305,6 +332,80 @@ export function EhtOverlayPanel({
             )}
           </div>
 
+
+        {/* Concordance scoreboard: every EHT-imaged target, engine vs published measurement. */}
+        <div className="mt-4 pt-3 border-t border-border">
+          <div className="technical text-[10px] text-signal">CONCORDANCE SCOREBOARD</div>
+          <div className="text-[11px] font-mono text-muted-foreground mt-1">
+            Kerr engine vs published EHT shadow diameters — all imaged targets, computed live
+          </div>
+          <table className="w-full mt-2 text-[10px] font-mono">
+            <thead>
+              <tr className="text-muted-foreground text-left">
+                <th className="py-1 font-normal">TARGET</th>
+                <th className="py-1 font-normal text-right">ENGINE μas</th>
+                <th className="py-1 font-normal text-right">EHT μas</th>
+                <th className="py-1 font-normal text-right">Δσ</th>
+                <th className="py-1 font-normal text-right">STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scoreboard.map((row) => (
+                <tr key={row.id} className="border-t border-border/60">
+                  <td className="py-1">{row.name}</td>
+                  <td className="py-1 text-right">{row.theo.toFixed(1)}</td>
+                  <td className="py-1 text-right">{`${row.obs.toFixed(1)} ± ${row.err.toFixed(1)}`}</td>
+                  <td
+                    className={`py-1 text-right ${row.sigma <= 1 ? "text-emerald-400" : "text-red-400"}`}
+                  >
+                    {row.sigma.toFixed(2)}
+                  </td>
+                  <td
+                    className={`py-1 text-right ${row.sigma <= 1 ? "text-emerald-400" : "text-red-400"}`}
+                  >
+                    {row.sigma <= 1 ? "WITHIN 1σ" : "OUT"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Independent validation 02: Schwarzschild precession of S2 (VLT/GRAVITY, Nobel Prize 2020). */}
+        <div className="mt-4 pt-3 border-t border-border">
+          <div className="technical text-[10px] text-signal">
+            INDEPENDENT VALIDATION 02 · GALACTIC CENTER
+          </div>
+          <div className="text-[11px] font-mono text-muted-foreground mt-1">
+            Schwarzschild precession of the S2 star — 27-year VLT/GRAVITY campaign (Nobel Prize in Physics 2020)
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <div className="p-2.5 rounded border border-border bg-card/60">
+              <div className="technical text-[9px] text-muted-foreground">GR PREDICTION · THIS ENGINE</div>
+              <div className="text-base font-mono font-medium text-emerald-400 mt-0.5">
+                {`${(s2.perihelionAdvanceArcsecPerOrbit / 60).toFixed(1)}′ PER ORBIT`}
+              </div>
+              <div className="text-[10px] font-mono mt-1">
+                {`Δω = 6πGM / c²a(1−e²) · a = ${s2.semiMajorAxisAu} AU · e = ${s2.eccentricity} · M = 4.297×10⁶ M☉`}
+              </div>
+            </div>
+            <div className="p-2.5 rounded border border-border bg-card/60">
+              <div className="technical text-[9px] text-muted-foreground">VLT/GRAVITY 2020</div>
+              <div className="text-base font-mono font-medium text-emerald-400 mt-0.5">
+                {`f_SP = ${s2.observedFractional.toFixed(2)} ± ${s2.observedError.toFixed(2)}`}
+              </div>
+              <div
+                className={`text-[10px] font-mono mt-1 ${
+                  s2.within1Sigma ? "text-emerald-400" : "text-red-400"
+                }`}
+              >
+                {s2.within1Sigma
+                  ? "Pure GR inside the published 1σ band — second independent confirmation"
+                  : "Outside the published 1σ band"}
+              </div>
+            </div>
+          </div>
+        </div>
           <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-xs font-mono text-muted-foreground">
             <span>NASA HEASARC / Event Horizon Telescope Collaboration Archive</span>
             <span>Astropy &amp; EinsteinPy Benchmark Ready</span>

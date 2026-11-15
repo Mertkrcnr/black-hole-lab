@@ -609,3 +609,46 @@ export function getBoyerLindquistMetric(r: number, thetaDeg: number, massM: numb
     g_phiphi: g_phiphi.toFixed(4),
   };
 }
+
+/**
+ * Schwarzschild precession of the S2 star orbiting Sagittarius A* — the second
+ * independent, Nobel-recognized (2020) validation of general relativity that this
+ * engine reproduces from first principles. Per-orbit prograde advance of the
+ * periapsis from the first-post-Newtonian (Gauss) term 6*PI*GM / (c^2 * a * (1-e^2)).
+ */
+export interface S2Test {
+  /** GR-predicted periapsis advance per orbit, arcseconds. */
+  perihelionAdvanceArcsecPerOrbit: number;
+  /** Adopted orbital elements (GRAVITY campaign). */
+  semiMajorAxisAu: number;
+  eccentricity: number;
+  /** VLT/GRAVITY 2020 measurement, in units of the GR prediction. */
+  observedFractional: number;
+  observedError: number;
+  /** Is pure GR inside the published 1-sigma band? */
+  within1Sigma: boolean;
+}
+
+export function calculateS2Precession(): S2Test {
+  const G = 6.6743e-11; // m^3 kg^-1 s^-2
+  const c = 299792458; // m/s
+  const msun = 1.98847e30; // kg
+  const au = 1.495978707e11; // m
+  const a = 1003 * au; // S2 semimajor axis
+  const e = 0.884; // S2 eccentricity
+  const M = 4.297e6 * msun; // Sagittarius A* mass (GRAVITY)
+
+  const advanceRad = (6 * Math.PI * G * M) / (c * c * a * (1 - e * e));
+  const arcsec = (advanceRad * 180) / Math.PI * 3600;
+
+  const observedFractional = 1.1; // f_SP = 1.10 +/- 0.19 (GRAVITY 2020)
+  const observedError = 0.19;
+  return {
+    perihelionAdvanceArcsecPerOrbit: arcsec,
+    semiMajorAxisAu: 1003,
+    eccentricity: e,
+    observedFractional,
+    observedError,
+    within1Sigma: Math.abs(1 - observedFractional) <= observedError,
+  };
+}

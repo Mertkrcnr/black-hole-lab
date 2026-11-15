@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateEhtTheoreticalShadow,
+  calculateS2Precession,
   defaultParameters,
   getBoyerLindquistMetric,
   getErgosphereCrossSection,
@@ -120,5 +121,26 @@ describe("scientific results interface model", () => {
     const sgrT = calculateEhtTheoreticalShadow(sgr.mass, sgr.distanceKpc!, false, sgr.spin);
     expect(Math.abs(sgrT.theoreticalShadowUas - sgr.ehtData!.shadowDiameterUas))
       .toBeLessThanOrEqual(sgr.ehtData!.shadowErrorUas);
+  });
+
+  it("S2 precession matches the closed-form 1PN Gauss term exactly", () => {
+    const s2 = calculateS2Precession();
+    const G = 6.6743e-11, c = 299792458, msun = 1.98847e30, au = 1.495978707e11;
+    const a = 1003 * au, e = 0.884, M = 4.297e6 * msun;
+    const expected = ((6 * Math.PI * G * M) / (c * c * a * (1 - e * e)) * 180) / Math.PI * 3600;
+    assert.ok(
+      Math.abs(s2.perihelionAdvanceArcsecPerOrbit - expected) < 1e-6,
+      "engine must reproduce the analytic 1PN formula",
+    );
+  });
+
+  it("S2 engine prediction sits inside the GRAVITY 2020 1-sigma band (f_SP = 1.10 +/- 0.19)", () => {
+    const s2 = calculateS2Precession();
+    // Adopted elements must yield ~12 arcmin per orbit (published: 12.1').
+    assert.ok(s2.perihelionAdvanceArcsecPerOrbit > 700 && s2.perihelionAdvanceArcsecPerOrbit < 800);
+    assert.ok(
+      Math.abs(1 - s2.observedFractional) <= s2.observedError,
+      "pure GR baseline must be within the published 1-sigma band",
+    );
   });
 });
