@@ -110,4 +110,15 @@ describe("scientific results interface model", () => {
     expect(Number(metric.g_thth)).toBeGreaterThan(0);
     expect(Number(metric.g_phiphi)).toBeGreaterThan(0);
   });
+
+  it("first-principles shadow diameter lands within the published EHT 1σ error bar", () => {
+    const m87 = objects.find((o) => o.id === "m87")!;
+    const m87T = calculateEhtTheoreticalShadow(m87.mass, m87.distanceMpc!, true, m87.spin);
+    expect(Math.abs(m87T.theoreticalShadowUas - m87.ehtData!.shadowDiameterUas))
+      .toBeLessThanOrEqual(m87.ehtData!.shadowErrorUas);
+    const sgr = objects.find((o) => o.id === "sagittarius")!;
+    const sgrT = calculateEhtTheoreticalShadow(sgr.mass, sgr.distanceKpc!, false, sgr.spin);
+    expect(Math.abs(sgrT.theoreticalShadowUas - sgr.ehtData!.shadowDiameterUas))
+      .toBeLessThanOrEqual(sgr.ehtData!.shadowErrorUas);
+  });
 });

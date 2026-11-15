@@ -76,6 +76,12 @@ export interface CatalogObject {
   ehtData?: EhtObservation;
 }
 
+/**
+ * One-line mission statement for the app header: what this lab is for.
+ */
+export const missionStatement =
+  "From first-principles Kerr general relativity to the published Event Horizon Telescope measurements \u2014 every number computed live, none hard-coded.";
+
 export const objects: CatalogObject[] = [
   {
     id: "m87",

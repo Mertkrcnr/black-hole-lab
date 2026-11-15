@@ -1,5 +1,5 @@
 import { createFileRoute, ClientOnly, useNavigate } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   Activity,
@@ -43,8 +43,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  calculateEhtTheoreticalShadow,
   defaultParameters,
   getReadouts,
+  missionStatement,
   objects,
   viewCatalog,
   type CatalogObject,
@@ -118,7 +120,7 @@ const TOUR_STEPS = [
   {
     target: "observable" as const,
     title: "Scientific Observables",
-    body: "Ten live quantities - event horizons, photon sphere, shadow radius, time dilation - update as you drag. Hover any row for the physics behind it.",
+    body: "Sixteen live quantities - horizons, photon sphere, ISCO energetics, Hawking temperature, entropy - update as you drag. Hover any row for the physics behind it.",
   },
   {
     target: "view" as const,
@@ -157,7 +159,32 @@ function Simulation() {
   const [exporting, setExporting] = useState(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
 
-  const selected = objects.find((o) => o.id === object);
+  // Default to the observed M87* preset on a bare first visit: the lab opens
+  // against the real EHT measurement instead of an anonymous generic black hole.
+  const selected =
+    objects.find((o) => o.id === object) ??
+    (object === undefined ? objects.find((o) => o.id === "m87") : undefined);
+
+  // Live EHT validation badge: first-principles shadow diameter for the current
+  // mass/spin vs the published Event Horizon Telescope measurement of the target.
+  const ehtBadge = useMemo(() => {
+    if (!selected?.ehtData) return null;
+    const isMpc = !!selected.distanceMpc;
+    const dist = isMpc ? selected.distanceMpc! : selected.distanceKpc!;
+    const { theoreticalShadowUas } = calculateEhtTheoreticalShadow(
+      parameters.mass,
+      dist,
+      isMpc,
+      parameters.spin,
+    );
+    const delta = theoreticalShadowUas - selected.ehtData.shadowDiameterUas;
+    return {
+      name: selected.name,
+      year: selected.ehtData.observationYear,
+      delta,
+      sigma: Math.abs(delta) / selected.ehtData.shadowErrorUas,
+    };
+  }, [selected, parameters]);
 
   // Bootstrap physics parameters from shareable URL (?M=&a=&r=&i=) once on mount.
   useEffect(() => {
@@ -477,6 +504,19 @@ THEORETICAL CLASSIFICATION:
           <div className="technical text-muted-foreground">
             {selected ? selected.location : "SIMULATION 01 · COMPUTATIONAL SOLVER"}
           </div>
+          <p className="technical text-[10px] text-muted-foreground mt-1">{missionStatement}</p>
+          {ehtBadge && (
+            <button
+              type="button"
+              onClick={() => setCenterView("eht")}
+              className="technical text-[10px] text-signal hover:underline cursor-pointer mt-1"
+              aria-label="Open NASA EHT validation panel"
+            >
+              {`MODEL vs EHT ${ehtBadge.year} · ${ehtBadge.name}: Δ ${
+                ehtBadge.delta >= 0 ? "+" : "−"
+              }${Math.abs(ehtBadge.delta).toFixed(1)} μas (${ehtBadge.sigma.toFixed(1)}σ) ↗`}
+            </button>
+          )}
 
           {/* Workflow Stepper */}
           <div className="workflow-bar" aria-label="Scientific Analysis Workflow">
