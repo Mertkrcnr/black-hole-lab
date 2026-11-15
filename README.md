@@ -83,3 +83,6 @@ TanStack Start (React 19 + TypeScript + Vite), TanStack Router/Query, Three.js +
 
 - **[Mert Karaçınar](https://github.com/Mertkrcnr)** \- project lead, physics engine and application
 - **[Bahar Yıldız](https://github.com/bahar-git4)** \- contributor
+- **[Vera Arıboğa](https://github.com/ariboga)** \- web design
+
+**Live site:** <https://mertkrcnr-black-hole-lab.mertkrcnr.workers.dev>
